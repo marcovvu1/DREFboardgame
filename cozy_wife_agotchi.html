@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Cozy Wife-agotchi · Full Game</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #0a0714;
+    font-family: monospace;
+    color: #fefae0;
+  }
+
+  #app {
+    width: 820px;
+    max-width: 100%;
+    border: 4px solid #f4d7a1;
+    box-shadow: 0 0 0 4px #111;
+    background: #1b1024;
+    display: flex;
+    flex-direction: row;
+  }
+
+  #leftPanel, #rightPanel {
+    padding: 8px;
+  }
+
+  #leftPanel {
+    width: 540px;
+    border-right: 3px solid #f4d7a1;
+    background: #140b1c;
+  }
+
+  #rightPanel {
+    width: 260px;
+    background: #211429;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #title {
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 3px;
+  }
+
+  #subtitle {
+    font-size: 10px;
+    text-align: center;
+    opacity: 0.8;
+    margin-bottom: 4px;
+  }
+
+  canvas {
+    border: 3px solid #f4d7a1;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    background: #000;
+  }
+
+  #statusBox {
+    margin-top: 4px;
+    border: 2px solid #f4d7a1;
+    padding: 4px;
+    min-height: 40px;
+    font-size: 10px;
+    background: #241530;
+  }
+
+  #timeBox {
+    margin-top: 4px;
+    font-size: 10px;
+    display: flex;
+    justify-content: space-between;
+    opacity: 0.9;
+  }
+
+  #landingOverlay,
+  #loadingOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 7, 20, 0.96);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
+
+  #landingOverlay h1 {
+    font-size: 22px;
+    margin-bottom: 6px;
+  }
+
+  #landingOverlay p {
+    font-size: 11px;
+    margin-bottom: 12px;
+    opacity: 0.9;
+    max-width: 320px;
+    text-align: center;
+  }
+
+  #startBtn {
+    padding: 10px 16px;
+    background: #f6d5a8;
+    border: 3px solid #5b4030;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  #startBtn:hover {
+    background: #ffe6c2;
+  }
+
+  #loaderBar {
+    width: 260px;
+    height: 16px;
+    border: 3px solid #f6d5a8;
+    background: #3b2646;
+    margin-top: 8px;
+    position: relative;
+  }
+
+  #loaderFill {
+    height: 100%;
+    width: 0%;
+    background: #90e37a;
+  }
+
+  #loaderText {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+
+  #stats {
+    margin-top: 4px;
+    font-size: 11px;
+  }
+
+  .statRow {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .statLabel {
+    width: 70px;
+  }
+
+  .statBarOuter {
+    flex: 1;
+    height: 9px;
+    border: 2px solid #f4d7a1;
+    background: #120814;
+    position: relative;
+  }
+
+  .statBarFill {
+    height: 100%;
+    width: 50%;
+    background: #9ae66e;
+  }
+
+  .statBarOuter.low .statBarFill {
+    background: #ffb347;
+  }
+
+  .statBarOuter.critical .statBarFill {
+    background: #ff5f5f;
+  }
+
+  #moodBox {
+    margin-top: 2px;
+    font-size: 10px;
+  }
+
+  #actionsTitle {
+    margin-top: 6px;
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+
+  #actionsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+
+  button.actionBtn {
+    font-family: inherit;
+    font-size: 10px;
+    border: 2px solid #f4d7a1;
+    padding: 6px 4px;
+    background: #3e254d;
+    color: #fefae0;
+    cursor: pointer;
+  }
+
+  button.actionBtn:hover {
+    background: #5e346c;
+  }
+
+  button.actionBtn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  #tips {
+    margin-top: 6px;
+    font-size: 9px;
+    opacity: 0.8;
+    line-height: 1.4;
+  }
+
+  #appWrapper {
+    position: relative;
+  }
+</style>
+</head>
+<body>
+<div id="appWrapper">
+  <!-- LANDING + LOADING OVERLAYS -->
+  <div id="landingOverlay">
+    <h1>Cozy Wife-agotchi</h1>
+    <p>Take care of your wife in a tiny 2D pixel apartment. Keep her rested, fed, loved and happy.</p>
+    <button id="startBtn">Start Game</button>
+  </div>
+
+  <div id="loadingOverlay" style="display:none;">
+    <h2>Loading...</h2>
+    <div id="loaderBar"><div id="loaderFill"></div></div>
+    <div id="loaderText">Preparing sprites and apartment...</div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app">
+    <div id="leftPanel">
+      <div id="title">Cozy Wife-agotchi · Pixel Home</div>
+      <div id="subtitle">Use the buttons to guide her day. Keep an eye on her mood.</div>
+      <canvas id="gameCanvas" width="512" height="320"></canvas>
+      <div id="statusBox">She just moved into her new cozy flat. Start by giving her a snack or coffee.</div>
+      <div id="timeBox">
+        <span id="dayLabel">Day 1</span>
+        <span id="clockLabel">07:00</span>
+      </div>
+    </div>
+
+    <div id="rightPanel">
+      <div id="stats">
+        <div class="statRow">
+          <div class="statLabel">Energy</div>
+          <div class="statBarOuter" id="energyBar"><div class="statBarFill" id="energyFill"></div></div>
+        </div>
+        <div class="statRow">
+          <div class="statLabel">Hunger</div>
+          <div class="statBarOuter" id="hungerBar"><div class="statBarFill" id="hungerFill"></div></div>
+        </div>
+        <div class="statRow">
+          <div class="statLabel">Fun</div>
+          <div class="statBarOuter" id="funBar"><div class="statBarFill" id="funFill"></div></div>
+        </div>
+        <div class="statRow">
+          <div class="statLabel">Love</div>
+          <div class="statBarOuter" id="loveBar"><div class="statBarFill" id="loveFill"></div></div>
+        </div>
+        <div class="statRow">
+          <div class="statLabel">Hygiene</div>
+          <div class="statBarOuter" id="hygieneBar"><div class="statBarFill" id="hygieneFill"></div></div>
+        </div>
+      </div>
+
+      <div id="moodBox">Mood: 😊 Relaxed</div>
+
+      <div id="actionsTitle">Actions</div>
+      <div id="actionsGrid">
+        <button class="actionBtn" data-action="snack">Cook Snack</button>
+        <button class="actionBtn" data-action="coffee">Brew Coffee</button>
+        <button class="actionBtn" data-action="nap">Nap in Bed</button>
+        <button class="actionBtn" data-action="shower">Hot Shower</button>
+        <button class="actionBtn" data-action="tv">Watch Series</button>
+        <button class="actionBtn" data-action="work">Deep Work</button>
+        <button class="actionBtn" data-action="chat">Long Talk</button>
+        <button class="actionBtn" data-action="date">Home Date</button>
+      </div>
+
+      <div id="tips">
+        • Time passes automatically; stats slowly drop.<br/>
+        • Tap an action and she walks to that place in the flat.<br/>
+        • If stats go low she gets stressed – balance her day.<br/>
+        • On iPad you can just tap the buttons to play.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// -------------------------------------------------------------------
+// 1. BASIC SETUP: CANVAS, CONTEXT, DOM REFS
+// -------------------------------------------------------------------
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+
+const landingOverlay = document.getElementById("landingOverlay");
+const loadingOverlay = document.getElementById("loadingOverlay");
+const startBtn = document.getElementById("startBtn");
+const loaderFill = document.getElementById("loaderFill");
+const loaderText = document.getElementById("loaderText");
+
+const statusBox = document.getElementById("statusBox");
+const dayLabel = document.getElementById("dayLabel");
+const clockLabel = document.getElementById("clockLabel");
+const moodBox = document.getElementById("moodBox");
+
+const actionButtons = document.querySelectorAll("button.actionBtn");
+
+const statBars = {
+  energy: { outer: document.getElementById("energyBar"), fill: document.getElementById("energyFill") },
+  hunger: { outer: document.getElementById("hungerBar"), fill: document.getElementById("hungerFill") },
+  fun:    { outer: document.getElementById("funBar"),    fill: document.getElementById("funFill") },
+  love:   { outer: document.getElementById("loveBar"),   fill: document.getElementById("loveFill") },
+  hygiene:{ outer: document.getElementById("hygieneBar"),fill: document.getElementById("hygieneFill") }
+};
+
+// -------------------------------------------------------------------
+// 2. WORLD CONSTANTS
+// -------------------------------------------------------------------
+const WORLD = {
+  width: canvas.width,
+  height: canvas.height,
+  floorY: 260,
+  wallHeight: 220
+};
+
+const COLORS = {
+  wallTop: "#3a213e",
+  wallBottom: "#2a1632",
+  floorLight: "#4a3035",
+  floorDark: "#3b2428",
+  windowDay: "#89c4ff",
+  windowNight: "#1b2446",
+  windowFrame: "#f6d5a8",
+  bedMain: "#caa68a",
+  bedTop: "#f6e7cf",
+  sofaMain: "#7f4b63",
+  sofaPillow: "#f0d0ff",
+  kitchenBase: "#a87b5e",
+  kitchenTop: "#d7b89e",
+  kitchenMetal: "#dddddd",
+  showerTile: "#4f6b8f",
+  balconyRail: "#f4d7a1",
+  balconySkyDay: "#78c8ff",
+  balconySkyNight: "#141b39",
+  plantPot: "#7b4c33",
+  plantLeaf: "#7acb58"
+};
+
+const ZONES = {
+  kitchen: { x: 80,  y: 220 },
+  sofa:    { x: 250, y: 220 },
+  bed:     { x: 430, y: 220 },
+  shower:  { x: 40,  y: 210 },
+  desk:    { x: 300, y: 210 },
+  tv:      { x: 250, y: 210 },
+  balcony: { x: 470, y: 180 }
+};
+
+// -------------------------------------------------------------------
+// 3. SPRITE SHEET LOADING (YOUR IMAGE)
+// -------------------------------------------------------------------
+const SPRITE_URL = "/mnt/data/01B9FA96-88BA-430D-A655-C821750AF7D0.PNG";
+const wifeSprite = new Image();
+let spriteReady = false;
+let FRAME_W = 96;
+let FRAME_H = 128;
+
+// 3x3 grid mapping
+const SPRITE_FRAME = {
+  happyTalk: { c: 0, r: 0 },
+  angry:     { c: 1, r: 0 },
+  crying:    { c: 2, r: 0 },
+
+  thinking:  { c: 0, r: 1 },
+  sleepy:    { c: 1, r: 1 },
+  wink:      { c: 2, r: 1 },
+
+  surprised: { c: 0, r: 2 },
+  neutral:   { c: 1, r: 2 },
+  chill:     { c: 2, r: 2 }
+};
+
+const ANIMATIONS = {
+  idle: [ { frame: "chill", time: 0.7 }, { frame: "neutral", time: 0.6 } ],
+  walk: [ { frame: "neutral", time: 0.2 }, { frame: "happyTalk", time: 0.2 } ],
+  eat:  [ { frame: "happyTalk", time: 0.3 }, { frame: "wink", time: 0.3 } ],
+  coffee: [ { frame: "thinking", time: 0.25 }, { frame: "happyTalk", time: 0.25 } ],
+  nap: [ { frame: "sleepy", time: 0.45 }, { frame: "chill", time: 0.45 } ],
+  shower: [ { frame: "surprised", time: 0.35 }, { frame: "happyTalk", time: 0.35 } ],
+  tv: [ { frame: "chill", time: 0.4 }, { frame: "wink", time: 0.4 } ],
+  work: [ { frame: "thinking", time: 0.4 }, { frame: "neutral", time: 0.4 } ],
+  sad: [ { frame: "crying", time: 0.5 }, { frame: "angry", time: 0.5 } ]
+};
+
+// -------------------------------------------------------------------
+// 4. GAME STATE
+// -------------------------------------------------------------------
+const state = {
+  x: 260,
+  y: 230,
+  speed: 60,
+  facing: 1,
+  activity: "idle",     // idle, walkingToAction, doingAction
+  activityName: "Idle",
+  target: null,
+  stats: {
+    energy: 80,
+    hunger: 70,
+    fun: 80,
+    love: 90,
+    hygiene: 75
+  },
+  timeMinutes: 7 * 60,
+  day: 1,
+  animation: {
+    current: "idle",
+    index: 0,
+    timer: 0
+  },
+  moodText: "😊 Relaxed",
+  moodEmoji: "😊"
+};
+
+const decayPerMinute = {
+  energy: 0.8,
+  hunger: 1.4,
+  fun: 0.7,
+  love: 0.2,
+  hygiene: 0.6
+};
+
+// -------------------------------------------------------------------
+// 5. ACTION DEFINITIONS
+// -------------------------------------------------------------------
+const ACTIONS = {
+  snack: {
+    label: "Cook Snack",
+    zone: ZONES.kitchen,
+    duration: 40,
+    animation: "eat",
+    onStart() {
+      setStatus("You prepare her favourite snack in the tiny kitchen.");
+    },
+    onTick(dtMin) {
+      state.stats.hunger += 3.2 * dtMin;
+      state.stats.fun += 0.8 * dtMin;
+    },
+    onEnd() {
+      setStatus("Snack time over – she feels full and a bit spoiled.");
+    }
+  },
+  coffee: {
+    label: "Brew Coffee",
+    zone: ZONES.kitchen,
+    duration: 25,
+    animation: "coffee",
+    onStart() {
+      setStatus("You brew her coffee exactly the way she likes it.");
+    },
+    onTick(dtMin) {
+      state.stats.energy += 2.4 * dtMin;
+      state.stats.hunger -= 0.5 * dtMin;
+      state.stats.fun += 0.6 * dtMin;
+    },
+    onEnd() {
+      setStatus("Caffeine acquired – she’s ready for the next thing.");
+    }
+  },
+  nap: {
+    label: "Nap in Bed",
+    zone: ZONES.bed,
+    duration: 90,
+    animation: "nap",
+    onStart() {
+      setStatus("You let her curl up in bed for a proper cozy nap.");
+    },
+    onTick(dtMin) {
+      state.stats.energy += 4.0 * dtMin;
+    },
+    onEnd() {
+      setStatus("She wakes up slowly, still a little sleepy but restored.");
+    }
+  },
+  shower: {
+    label: "Hot Shower",
+    zone: ZONES.shower,
+    duration: 45,
+    animation: "shower",
+    onStart() {
+      setStatus("A long hot shower with her favourite products.");
+    },
+    onTick(dtMin) {
+      state.stats.hygiene += 4.5 * dtMin;
+      state.stats.energy += 0.3 * dtMin;
+    },
+    onEnd() {
+      setStatus("Fresh and clean, wrapped in a fluffy towel.");
+    }
+  },
+  tv: {
+    label: "Watch Series",
+    zone: ZONES.sofa,
+    duration: 60,
+    animation: "tv",
+    onStart() {
+      setStatus("Series time on the sofa – no phones allowed.");
+    },
+    onTick(dtMin) {
+      state.stats.fun += 3.0 * dtMin;
+      state.stats.love += 0.8 * dtMin;
+    },
+    onEnd() {
+      setStatus("Episodes done; she keeps quoting her favourite lines.");
+    }
+  },
+  work: {
+    label: "Deep Work",
+    zone: ZONES.desk,
+    duration: 120,
+    animation: "work",
+    onStart() {
+      setStatus("She sits at the desk for a focused deep work session.");
+    },
+    onTick(dtMin) {
+      state.stats.fun -= 0.8 * dtMin;
+      state.stats.energy -= 1.5 * dtMin;
+    },
+    onEnd() {
+      setStatus("Work finished – productive, but she needs some care now.");
+    }
+  },
+  chat: {
+    label: "Long Talk",
+    zone: ZONES.sofa,
+    duration: 50,
+    animation: "eat",
+    onStart() {
+      setStatus("You sit together and really talk about her day.");
+    },
+    onTick(dtMin) {
+      state.stats.love += 3.0 * dtMin;
+      state.stats.fun += 1.0 * dtMin;
+    },
+    onEnd() {
+      setStatus("She feels heard, understood and loved.");
+    }
+  },
+  date: {
+    label: "Home Date",
+    zone: ZONES.balcony,
+    duration: 80,
+    animation: "tv",
+    onStart() {
+      setStatus("Balcony lights, snacks and music – tiny home date.");
+    },
+    onTick(dtMin) {
+      state.stats.fun += 2.8 * dtMin;
+      state.stats.love += 3.2 * dtMin;
+      state.stats.energy -= 0.4 * dtMin;
+    },
+    onEnd() {
+      setStatus("Home date over – she smiles every time she remembers it.");
+    }
+  }
+};
+
+let currentAction = null;
+let actionRemainingMinutes = 0;
+
+// -------------------------------------------------------------------
+// 6. UTILS & UI
+// -------------------------------------------------------------------
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function formatTime(minutes) {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  const hh = h < 10 ? "0" + h : "" + h;
+  const mm = m < 10 ? "0" + m : "" + m;
+  return hh + ":" + mm;
+}
+
+function isNight(timeMinutes) {
+  const h = Math.floor(timeMinutes / 60) % 24;
+  return (h >= 21 || h < 6);
+}
+
+function setStatus(text) {
+  statusBox.textContent = text;
+}
+
+function updateStatsUI() {
+  const s = state.stats;
+  for (const key in s) {
+    const value = clamp(s[key], 0, 100);
+    const { outer, fill } = statBars[key];
+    fill.style.width = value + "%";
+    outer.classList.remove("low", "critical");
+    if (value <= 25) outer.classList.add("critical");
+    else if (value <= 50) outer.classList.add("low");
+  }
+  dayLabel.textContent = "Day " + state.day;
+  clockLabel.textContent = formatTime(state.timeMinutes);
+}
+
+function updateMood() {
+  const s = state.stats;
+  const avg = (s.energy + s.hunger + s.fun + s.love + s.hygiene) / 5;
+  let text, emoji;
+  if (avg >= 85) { text = "✨ Thriving"; emoji = "✨"; }
+  else if (avg >= 70) { text = "😊 Relaxed"; emoji = "😊"; }
+  else if (avg >= 55) { text = "😐 A bit tired"; emoji = "😐"; }
+  else if (avg >= 40) { text = "😕 Stressed"; emoji = "😕"; }
+  else { text = "😭 Overwhelmed – she needs care"; emoji = "😭"; }
+  state.moodText = text;
+  state.moodEmoji = emoji;
+  moodBox.textContent = "Mood: " + emoji + " " + text;
+}
+
+// -------------------------------------------------------------------
+// 7. INPUT: ACTION BUTTONS
+// -------------------------------------------------------------------
+function setButtonsDisabled(disabled) {
+  actionButtons.forEach(b => b.disabled = disabled);
+}
+
+actionButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const key = btn.getAttribute("data-action");
+    startAction(key);
+  });
+});
+
+function startAction(key) {
+  const def = ACTIONS[key];
+  if (!def) return;
+  currentAction = def;
+  actionRemainingMinutes = def.duration;
+  state.activity = "walkingToAction";
+  state.activityName = def.label;
+  state.target = { x: def.zone.x, y: def.zone.y };
+  setStatus(def.label + " – she’s walking there.");
+  setButtonsDisabled(true);
+}
+
+// -------------------------------------------------------------------
+// 8. ANIMATION
+// -------------------------------------------------------------------
+function setAnimation(name) {
+  if (state.animation.current !== name) {
+    state.animation.current = name;
+    state.animation.index = 0;
+    state.animation.timer = 0;
+  }
+}
+
+function updateAnimation(dt) {
+  const animName = state.animation.current;
+  const animDef = ANIMATIONS[animName] || ANIMATIONS.idle;
+  const frame = animDef[state.animation.index];
+  if (!frame) return;
+  state.animation.timer += dt;
+  if (state.animation.timer >= frame.time) {
+    state.animation.timer = 0;
+    state.animation.index = (state.animation.index + 1) % animDef.length;
+  }
+}
+
+function getCurrentFrameKey() {
+  const animName = state.animation.current;
+  const animDef = ANIMATIONS[animName] || ANIMATIONS.idle;
+  const frame = animDef[state.animation.index] || animDef[0];
+  return frame.frame || "neutral";
+}
+
+// -------------------------------------------------------------------
+// 9. RENDER WORLD + CHARACTER
+// -------------------------------------------------------------------
+function drawBackground() {
+  const night = isNight(state.timeMinutes);
+  ctx.fillStyle = COLORS.wallTop;
+  ctx.fillRect(0, 0, WORLD.width, WORLD.wallHeight);
+
+  ctx.fillStyle = COLORS.wallBottom;
+  ctx.fillRect(0, WORLD.wallHeight - 40, WORLD.width, 40);
+
+  // floor tiles
+  for (let y = WORLD.wallHeight; y < WORLD.height; y += 16) {
+    for (let x = 0; x < WORLD.width; x += 16) {
+      const toggle = ((x / 16) + (y / 16)) % 2 === 0;
+      ctx.fillStyle = toggle ? COLORS.floorLight : COLORS.floorDark;
+      ctx.fillRect(x, y, 16, 16);
+    }
+  }
+
+  // window
+  const winX = 170, winY = 60, winW = 170, winH = 80;
+  ctx.fillStyle = COLORS.windowFrame;
+  ctx.fillRect(winX - 6, winY - 6, winW + 12, winH + 12);
+  ctx.fillRect(winX, winY, winW, winH);
+  ctx.fillStyle = night ? COLORS.windowNight : COLORS.windowDay;
+  ctx.fillRect(winX + 3, winY + 3, winW - 6, winH - 6);
+  if (!night) {
+    ctx.fillStyle = "#ffffff";
+    for (let i = 0; i < 4; i++) {
+      const cx = winX + 20 + i * 35;
+      const ch = 20 + (i % 2) * 10;
+      ctx.fillRect(cx, winY + winH - ch - 3, 18, ch);
+    }
+  } else {
+    ctx.fillStyle = "#ffffff";
+    for (let i = 0; i < 15; i++) {
+      const sx = winX + 8 + Math.random() * (winW - 16);
+      const sy = winY + 8 + Math.random() * (winH - 16);
+      ctx.fillRect(sx, sy, 1, 1);
+    }
+  }
+
+  // kitchen counter
+  ctx.fillStyle = COLORS.kitchenBase;
+  ctx.fillRect(20, WORLD.floorY - 70, 110, 70);
+  ctx.fillStyle = COLORS.kitchenTop;
+  ctx.fillRect(20, WORLD.floorY - 74, 110, 8);
+
+  ctx.fillStyle = COLORS.kitchenMetal;
+  ctx.fillRect(30, WORLD.floorY - 50, 32, 18);
+  ctx.fillStyle = "#808080";
+  ctx.fillRect(40, WORLD.floorY - 55, 4, 12);
+
+  ctx.fillStyle = "#222";
+  ctx.fillRect(75, WORLD.floorY - 55, 40, 24);
+  ctx.fillStyle = "#555";
+  ctx.fillRect(80, WORLD.floorY - 50, 12, 12);
+  ctx.fillRect(96, WORLD.floorY - 50, 12, 12);
+
+  // shower corner
+  ctx.fillStyle = COLORS.showerTile;
+  ctx.fillRect(0, WORLD.floorY - 90, 60, 90);
+  ctx.fillStyle = "#9dd1ff";
+  ctx.fillRect(10, WORLD.floorY - 80, 30, 60);
+  ctx.fillStyle = "#d8f3ff";
+  ctx.fillRect(16, WORLD.floorY - 70, 18, 30);
+  ctx.fillStyle = "#c0e4ff";
+  ctx.fillRect(12, WORLD.floorY - 84, 20, 4);
+
+  // bed
+  const bedX = 380, bedY = WORLD.floorY - 40;
+  ctx.fillStyle = COLORS.bedMain;
+  ctx.fillRect(bedX, bedY, 120, 40);
+  ctx.fillStyle = COLORS.bedTop;
+  ctx.fillRect(bedX + 10, bedY - 24, 80, 24);
+  ctx.fillStyle = "#f5d0d0";
+  ctx.fillRect(bedX + 12, bedY - 22, 24, 20);
+  ctx.fillStyle = "#f5f5f5";
+  ctx.fillRect(bedX + 40, bedY - 22, 24, 20);
+
+  // sofa
+  const sofaX = 220, sofaY = WORLD.floorY - 40;
+  ctx.fillStyle = COLORS.sofaMain;
+  ctx.fillRect(sofaX, sofaY, 110, 40);
+  ctx.fillRect(sofaX, sofaY - 25, 110, 25);
+  ctx.fillStyle = COLORS.sofaPillow;
+  ctx.fillRect(sofaX + 8, sofaY - 20, 28, 18);
+  ctx.fillRect(sofaX + 70, sofaY - 20, 28, 18);
+
+  // TV
+  ctx.fillStyle = "#111";
+  ctx.fillRect(230, 120, 80, 45);
+  ctx.fillStyle = night ? "#4ab9ff" : "#e3f2fd";
+  ctx.fillRect(233, 123, 74, 39);
+
+  // desk
+  const deskX = 290, deskY = WORLD.floorY - 40;
+  ctx.fillStyle = "#7f5d3e";
+  ctx.fillRect(deskX, deskY - 30, 70, 10);
+  ctx.fillRect(deskX + 6, deskY - 20, 12, 40);
+  ctx.fillRect(deskX + 52, deskY - 20, 12, 40);
+
+  ctx.fillStyle = "#111";
+  ctx.fillRect(deskX + 18, deskY - 60, 34, 22);
+  ctx.fillStyle = "#1e2933";
+  ctx.fillRect(deskX + 20, deskY - 58, 30, 18);
+
+  // balcony door
+  const balX = 450, balY = WORLD.floorY - 120;
+  ctx.fillStyle = "#f4d7a1";
+  ctx.fillRect(balX, balY, 50, 120);
+  ctx.fillStyle = night ? COLORS.balconySkyNight : COLORS.balconySkyDay;
+  ctx.fillRect(balX + 5, balY + 5, 40, 110);
+  ctx.fillStyle = COLORS.balconyRail;
+  ctx.fillRect(balX + 5, balY + 80, 40, 4);
+  ctx.fillRect(balX + 7, balY + 84, 4, 20);
+  ctx.fillRect(balX + 19, balY + 84, 4, 20);
+  ctx.fillRect(balX + 31, balY + 84, 4, 20);
+
+  // plant
+  ctx.fillStyle = COLORS.plantPot;
+  ctx.fillRect(150, WORLD.floorY - 32, 18, 12);
+  ctx.fillStyle = COLORS.plantLeaf;
+  ctx.beginPath();
+  ctx.arc(159, WORLD.floorY - 36, 10, Math.PI, 0);
+  ctx.fill();
+}
+
+function drawCharacter() {
+  if (!spriteReady) {
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(state.x - 8, state.y - 24, 16, 24);
+    return;
+  }
+  const frameKey = getCurrentFrameKey();
+  const spr = SPRITE_FRAME[frameKey] || SPRITE_FRAME.neutral;
+  const sx = spr.c * FRAME_W;
+  const sy = spr.r * FRAME_H;
+  const scale = 0.7;
+  const w = FRAME_W * scale;
+  const h = FRAME_H * scale;
+
+  ctx.save();
+  ctx.translate(state.x, state.y);
+  ctx.scale(state.facing, 1);
+  ctx.drawImage(wifeSprite, sx, sy, FRAME_W, FRAME_H, -w / 2, -h, w, h);
+  ctx.restore();
+}
+
+// -------------------------------------------------------------------
+// 10. GAME UPDATE
+// -------------------------------------------------------------------
+let lastTs = 0;
+
+function update(dt) {
+  const dtMin = dt / 60;
+
+  // time + day
+  state.timeMinutes += dtMin;
+  if (state.timeMinutes >= 24 * 60) {
+    state.timeMinutes -= 24 * 60;
+    state.day += 1;
+  }
+
+  // decay
+  const s = state.stats;
+  for (const key in s) {
+    s[key] -= decayPerMinute[key] * dtMin;
+    s[key] = clamp(s[key], 0, 120);
+  }
+
+  // action logic
+  if (currentAction) {
+    if (state.activity === "walkingToAction") {
+      moveTowardsTarget(dt);
+    } else if (state.activity === "doingAction") {
+      currentAction.onTick(dtMin);
+      actionRemainingMinutes -= dtMin;
+      if (actionRemainingMinutes <= 0) {
+        currentAction.onEnd();
+        currentAction = null;
+        state.activity = "idle";
+        state.target = null;
+        setButtonsDisabled(false);
+      }
+    }
+  }
+
+  updateMood();
+  updateStatsUI();
+  chooseAnimation();
+  updateAnimation(dt);
+}
+
+function moveTowardsTarget(dt) {
+  if (!state.target) return;
+  const dx = state.target.x - state.x;
+  const dy = state.target.y - state.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 4) {
+    state.x = state.target.x;
+    state.y = state.target.y;
+    state.activity = "doingAction";
+    if (currentAction) currentAction.onStart();
+    return;
+  }
+  const dirX = dx / dist;
+  const dirY = dy / dist;
+  state.x += dirX * state.speed * dt;
+  state.y += dirY * state.speed * dt;
+  state.facing = dirX >= 0 ? 1 : -1;
+}
+
+function chooseAnimation() {
+  const s = state.stats;
+  const minStat = Math.min(s.energy, s.hunger, s.fun, s.love, s.hygiene);
+  if (minStat <= 30) { setAnimation("sad"); return; }
+  if (state.activity === "walkingToAction") setAnimation("walk");
+  else if (state.activity === "doingAction" && currentAction) setAnimation(currentAction.animation);
+  else setAnimation("idle");
+}
+
+// -------------------------------------------------------------------
+// 11. MAIN LOOP
+// -------------------------------------------------------------------
+function loop(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+
+  update(dt);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
+  drawCharacter();
+
+  requestAnimationFrame(loop);
+}
+
+// -------------------------------------------------------------------
+// 12. LOADING + START
+// -------------------------------------------------------------------
+function startGame() {
+  loadingOverlay.style.display = "flex";
+  landingOverlay.style.display = "none";
+
+  wifeSprite.onload = () => {
+    spriteReady = true;
+    FRAME_W = wifeSprite.width / 3;
+    FRAME_H = wifeSprite.height / 3;
+    loaderFill.style.width = "100%";
+    loaderText.textContent = "Done. Welcome home.";
+    setTimeout(() => {
+      loadingOverlay.style.display = "none";
+      setStatus("She just moved into her cozy flat. Try a snack or coffee.");
+      updateStatsUI();
+      updateMood();
+      requestAnimationFrame(loop);
+    }, 400);
+  };
+
+  // start loading
+  wifeSprite.src = SPRITE_URL;
+  loaderFill.style.width = "40%";
+  loaderText.textContent = "Loading sprite sheet...";
+}
+
+startBtn.addEventListener("click", startGame);
+</script>
+</body>
+</html>
